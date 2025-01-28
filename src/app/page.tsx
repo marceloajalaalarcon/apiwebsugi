@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-
 interface InvestmentData {
   name: string;
   indicators: Record<string, string>;
@@ -33,17 +32,11 @@ function cleanData(data: InvestmentData): InvestmentData {
 
   const cleanedIndicators = Object.entries(data.indicators).reduce<Record<string, string>>(
     (acc, [key, value]) => {
-      // Limpa a chave removendo explicações ou elementos desnecessários
       const cleanedKey = key.replace(/\s+help_outline.*$/, '').trim();
-
-      // Renomeia a chave, se aplicável
       const renamedKey = renameKeys[cleanedKey] || cleanedKey;
-
-      // Verifica se a chave final é válida
       if (renamedKey && !renamedKey.includes('help_outline')) {
         acc[renamedKey] = value.trim();
       }
-
       return acc;
     },
     {}
@@ -55,7 +48,6 @@ function cleanData(data: InvestmentData): InvestmentData {
   };
 }
 
-
 export default function Home() {
   const [acoesTicker, setAcoesTicker] = useState("BBDC4");
   const [fundosTicker, setFundosTicker] = useState("KNRI11");
@@ -64,12 +56,15 @@ export default function Home() {
   const [acoesData, setAcoesData] = useState<InvestmentData | null>(null);
   const [fundosData, setFundosData] = useState<InvestmentData | null>(null);
   const [fiagrosData, setFiagrosData] = useState<InvestmentData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchData = async () => {
+    setIsLoading(true);
+
     const acoes = await getInvestmentData("acoes", acoesTicker);
     const fundos = await getInvestmentData("fundos-imobiliarios", fundosTicker);
     const fiagros = await getInvestmentData("fiagros", fiagrosTicker);
-  
+
     if (!acoes) {
       toast.error(`O ticker de ações "${acoesTicker}" é inválido ou não foi encontrado.`);
     }
@@ -79,13 +74,13 @@ export default function Home() {
     if (!fiagros) {
       toast.error(`O ticker de fiagros "${fiagrosTicker}" é inválido ou não foi encontrado.`);
     }
-  
+
     setAcoesData(acoes ? cleanData(acoes) : null);
     setFundosData(fundos ? cleanData(fundos) : null);
     setFiagrosData(fiagros ? cleanData(fiagros) : null);
+
+    setIsLoading(false);
   };
-  
-  
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -140,9 +135,17 @@ export default function Home() {
         <button
           onClick={fetchData}
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+          disabled={isLoading}
         >
-          Buscar Dados
+          {isLoading ? "Carregando..." : "Buscar Dados"}
         </button>
+
+        {/* Indicador de carregamento */}
+        {isLoading && (
+          <div className="text-center mt-4 text-blue-600 font-medium">
+            Buscando dados, por favor aguarde...
+          </div>
+        )}
 
         {/* Resultados */}
         <div className="mt-10 space-y-8">
@@ -195,128 +198,3 @@ export default function Home() {
     </div>
   );
 }
-
-// import axios from 'axios';
-// import * as cheerio from 'cheerio';
-// import fs from 'fs';
-
-// interface InvestmentData {
-//   name: string;
-//   indicators: Record<string, string>;
-// }
-
-// async function getInvestmentData(type: string, ticker: string): Promise<InvestmentData | null> {
-//   try {
-//     const url = `https://statusinvest.com.br/${type}/${ticker}`;
-//     const { data: html } = await axios.get(url, {
-//       headers: {
-//         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-//         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-//         'Referer': 'https://statusinvest.com.br/',
-//       },
-//     });
-
-//     const $ = cheerio.load(html);
-//     const data: InvestmentData = {
-//       name: $('h1').text().trim(),
-//       indicators: {},
-//     };
-
-//     $('.info').each((_, element) => {
-//       const label = $(element).find('.title').text().trim();
-//       const rawValue = $(element).find('.value').text().trim();
-//       const cleanValue = rawValue.replace(/\n/g, '').replace(/\s+/g, ' ').trim();
-
-//       if (label && cleanValue) {
-//         data.indicators[label] = cleanValue;
-//       }
-//     });
-
-//     const cleanedData = cleanData(data);
-//     // const cleanedFileName = `public/StatusInvest/${type}_${ticker}_data_cleaned.json`;
-
-//     // fs.writeFileSync(cleanedFileName, JSON.stringify(cleanedData, null, 2), 'utf-8');
-//     // console.log(`Dados do tipo ${type} e ticker ${ticker} processados e salvos no arquivo: ${cleanedFileName}`);
-
-//     return cleanedData;
-//   } catch (error) {
-//     console.error(`Erro ao buscar dados para ${type}/${ticker}:`, error);
-//     return null;
-//   }
-// }
-
-// function cleanData(data: InvestmentData): InvestmentData {
-//   const renameKeys: Record<string, string> = {
-//     'Val. patrim. p/cotaValor patrim. p/cotaVal. patrimonial p/cota': 'Val. patrim. cota',
-//     'REND. MÉD. (24M)RENDIM. MÉDIO (24M)RENDIMENTO MENSAL MÉDIO (24M)': 'REND. MÉD.',
-//     'PARTIC. NO IFIXPARTICIPAÇÃO NO IFIX': 'PARTIC. NO IFIX',
-//   };
-
-//   const cleanedIndicators = Object.entries(data.indicators).reduce<Record<string, string>>((acc, [key, value]) => {
-//     const cleanedKey = key.replace(/\s+help_outline.*$/, '').trim();
-//     const renamedKey = renameKeys[cleanedKey] || cleanedKey;
-
-//     if (renamedKey && !renamedKey.includes('help_outline')) {
-//       acc[renamedKey] = value.trim();
-//     }
-
-//     return acc;
-//   }, {});
-
-//   return {
-//     name: data.name,
-//     indicators: cleanedIndicators,
-//   };
-// }
-
-// export default async function Home() {
-//   const acoesData = await getInvestmentData('acoes', 'BBDC4');
-//   const fundosData = await getInvestmentData('fundos-imobiliarios', 'KNRI11');
-//   const fiagrosData = await getInvestmentData('fiagros', 'HGAG11');
-
-//   return (
-//     <div className="p-8">
-//       <h1 className="text-2xl font-bold">Dados de Investimentos</h1>
-//       <div className="mt-4">
-//         {acoesData && (
-//           <div>
-//             <h2 className="text-xl font-semibold">Ações - {acoesData.name}</h2>
-//             <ul>
-//               {Object.entries(acoesData.indicators).map(([key, value]) => (
-//                 <li key={key}>
-//                   <strong>{key}:</strong> {value}
-//                 </li>
-//               ))}
-//             </ul>
-//           </div>
-//         )}
-
-//         {fundosData && (
-//           <div>
-//             <h2 className="text-xl font-semibold">Fundos Imobiliários - {fundosData.name}</h2>
-//             <ul>
-//               {Object.entries(fundosData.indicators).map(([key, value]) => (
-//                 <li key={key}>
-//                   <strong>{key}:</strong> {value}
-//                 </li>
-//               ))}
-//             </ul>
-//           </div>
-//         )}
-
-//         {fiagrosData && (
-//           <div>
-//             <h2 className="text-xl font-semibold">Fiagros - {fiagrosData.name}</h2>
-//             <ul>
-//               {Object.entries(fiagrosData.indicators).map(([key, value]) => (
-//                 <li key={key}>
-//                   <strong>{key}:</strong> {value}
-//                 </li>
-//               ))}
-//             </ul>
-//           </div>
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
