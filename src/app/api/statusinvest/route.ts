@@ -48,29 +48,28 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json({ name, indicators });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao buscar dados:", {
-      message: error.message,
-      stack: error.stack,
-      response: error.response?.data || null,
+      message: error instanceof Error ? error.message : "Erro desconhecido",
+      stack: error instanceof Error ? error.stack : null,
+      response: axios.isAxiosError(error) ? error.response?.data : null,
     });
-
-    // Trate erros de conexão ou requisição inválida
+  
     if (axios.isAxiosError(error) && error.response) {
       return NextResponse.json(
         {
-          error: `Erro ao buscar dados externos`,
+          error: `Erro ao buscar dados externos: ${error.response.status} - ${error.response.statusText}`,
         },
         { status: error.response.status }
       );
     }
-
-    // Erros genéricos
+  
     return NextResponse.json(
       { error: "Erro interno ao buscar dados." },
       { status: 500 }
     );
   }
+  
 }
 
 
